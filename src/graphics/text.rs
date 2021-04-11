@@ -4,7 +4,7 @@ const TEXT_IMAGE_COLUMNS: i32 = 16;
 const TEXT_IMAGE_ROWS: i32 = 8;
 const TEXT_CHARACTERS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789!?@#$%\"'&()*+,-./:;<>=[]{}|\\";
 
-pub fn render_text(text: &str, x: f32, y: f32, size: f32, base_idx: usize) -> (Vec<Vertex>, Vec<u16>) {
+pub fn render_text(text: &str, x: f32, y: f32, size: f32, base_idx: usize, color: [f32; 3]) -> (Vec<Vertex>, Vec<u16>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
@@ -19,22 +19,22 @@ pub fn render_text(text: &str, x: f32, y: f32, size: f32, base_idx: usize) -> (V
         vertices.extend_from_slice(&[
             Vertex {
                 position: [x + i as f32 * size, y, 0.0],
-                color: [1.0, 1.0, 1.0],
+                color,
                 tex_coords: [char_x, char_y],
             },
             Vertex {
                 position: [x + size + i as f32 * size, y, 0.0],
-                color: [1.0, 1.0, 1.0],
+                color,
                 tex_coords: [char_x + tile_size_x, char_y],
             },
             Vertex {
                 position: [x + i as f32 * size, y + size / 2.0, 0.0],
-                color: [1.0, 1.0, 1.0],
+                color,
                 tex_coords: [char_x, char_y + tile_size_y],
             },
             Vertex {
                 position: [x + size + i as f32 * size, y + size / 2.0, 0.0],
-                color: [1.0, 1.0, 1.0],
+                color,
                 tex_coords: [char_x + tile_size_x, char_y + tile_size_y],
             },
         ]);

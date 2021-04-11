@@ -9,6 +9,9 @@ use lib::{game::GameState, graphics::Vertex};
 
 const FIELD_WIDTH: u32 = 10;
 const FIELD_HEIGHT: u32 = 20;
+const FRAME_TIME: f32 = 0.05;
+const ACTIVE_COLOR: [f32; 3] = [1.0, 1.0, 1.0];
+const INACTIVE_COLOR: [f32; 3] = [0.5, 0.5, 0.5];
 
 #[rustfmt::ignore = "readability"]
 static PIECES: &[&str] = &[
@@ -136,6 +139,213 @@ impl Piece {
 
 type Field = [Cell; (FIELD_WIDTH * FIELD_HEIGHT) as usize];
 
+fn was_pressed(input: KeyState, ticker: u64) -> bool {
+    match input {
+        KeyState::Pressed => true,
+        KeyState::Holding if ticker % 2 == 0 => true,
+        _ => false,
+    }
+}
+
+struct TetrisMenu {
+    // Current menu selection
+    selection: u8,
+
+    // Previous frame player input
+    last_input: PlayerInput,
+
+    /// Time accumulator
+    accum: f32,
+
+    /// Current frame number
+    ticker: u64,
+}
+
+impl Default for TetrisMenu {
+    fn default() -> Self {
+        TetrisMenu {
+            selection: 0,
+            last_input: PlayerInput::all_pressed(),
+            accum: 0.0,
+            ticker: 0,
+        }
+    }
+}
+
+impl GameState for TetrisMenu {
+    fn update(&mut self, window: &glfw::Window, dt: std::time::Duration) -> lib::game::StateChange {
+        self.accum += dt.as_secs_f32();
+
+        while self.accum >= FRAME_TIME {
+            self.accum -= FRAME_TIME;
+            self.ticker += 1;
+
+            let input = input(window, self.last_input);
+            self.last_input = input;
+            if input.rot_left == KeyState::Pressed || input.rot_right == KeyState::Pressed {
+                // confirm choice.
+                match self.selection {
+                    0 => {
+                        // load game
+                        return lib::game::StateChange::Push(Box::new(TetrisMain::default()));
+                    }
+                    1 => {
+                        // quit game
+                        return lib::game::StateChange::Quit;
+                    }
+                    _ => unreachable!(),
+                }
+            } else if input.up == KeyState::Pressed {
+                // move selection up
+                if self.selection == 0 {
+                    self.selection = 1;
+                } else {
+                    self.selection -= 1;
+                }
+            } else if input.down == KeyState::Pressed {
+                // move selection down
+                if self.selection == 1 {
+                    self.selection = 0;
+                } else {
+                    self.selection += 1;
+                }
+            }
+        }
+
+        lib::game::StateChange::None
+    }
+
+    fn render(&self, graphics: &lib::graphics::GraphicsState) -> Result<(), wgpu::SwapChainError> {
+        // create uniforms
+        let dimensions = (graphics.sc_desc.width as f32, graphics.sc_desc.height as f32);
+        let aspect_ratio = dimensions.0 / dimensions.1;
+        let offset = aspect_ratio / 2.0 - 0.5;
+        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0) * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
+        let raw: [[f32; 4]; 4] = proj.into();
+        graphics.queue.write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
+        
+        // render text
+        let mut vertices_text = Vec::new();
+        let mut indices_text = Vec::new();
+
+        let (vt, it) = lib::graphics::text::render_text("Tet.rs", 0.0, 0.2, 1.0/6.0, vertices_text.len(), ACTIVE_COLOR);
+        vertices_text.extend(vt);
+        indices_text.extend(it);
+
+        let (vt, it) = lib::graphics::text::render_text("Play", 0.25, 0.5, 0.5/4.0, vertices_text.len(), if self.selection == 0 { ACTIVE_COLOR } else { INACTIVE_COLOR });
+        vertices_text.extend(vt);
+        indices_text.extend(it);
+
+        let (vt, it) = lib::graphics::text::render_text("Quit", 0.25, 0.7, 0.5/4.0, vertices_text.len(), if self.selection == 1 { ACTIVE_COLOR } else { INACTIVE_COLOR });
+        vertices_text.extend(vt);
+        indices_text.extend(it);
+
+        // render selection tick on highlighted thingie
+        let y_offset = match self.selection {
+            0 => 0.5,
+            1 => 0.7,
+            _ => unreachable!(),
+        };
+        let tri_width = 0.5/4.0/2.0;
+        let x_offset = 0.25 - tri_width * 1.5;
+        let vertices_tri = vec![
+            Vertex {
+                position: [x_offset, y_offset, 0.0],
+                color: [1.0, 1.0, 1.0],
+                tex_coords: [0.0, 0.0]
+            },
+            Vertex {
+                position: [x_offset + tri_width, y_offset + tri_width/2.0, 0.0],
+                color: [1.0, 1.0, 1.0],
+                tex_coords: [0.0, 0.0]
+            },
+            Vertex {
+                position: [x_offset, y_offset + tri_width, 0.0],
+                color: [1.0, 1.0, 1.0],
+                tex_coords: [0.0, 0.0]
+            }
+        ];
+        let indices_tri: Vec<u16> = vec![
+            0, 2, 1
+        ];
+
+        // create buffers
+        let v_text_buf = graphics
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                contents: bytemuck::cast_slice(&vertices_text),
+                label: Some("v_text_buf"),
+                usage: wgpu::BufferUsage::VERTEX,
+            });
+        let i_text_buf = graphics
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                contents: bytemuck::cast_slice(&indices_text),
+                label: Some("i_text_buf"),
+                usage: wgpu::BufferUsage::INDEX,
+            });
+        let v_tri_buf = graphics
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                contents: bytemuck::cast_slice(&vertices_tri),
+                label: Some("v_text_buf"),
+                usage: wgpu::BufferUsage::VERTEX,
+            });
+        let i_tri_buf = graphics
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                contents: bytemuck::cast_slice(&indices_tri),
+                label: Some("i_text_buf"),
+                usage: wgpu::BufferUsage::INDEX,
+            });
+        
+
+        // render!
+        let frame = graphics.swap_chain.get_current_frame()?.output;
+        let mut command_buf = graphics
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("command_buf") });
+        {
+            let mut pass = command_buf.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("pass"),
+                color_attachments: &[wgpu::RenderPassColorAttachment {
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0125,
+                            b: 0.05,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                    resolve_target: None,
+                    view: &frame.view,
+                }],
+                depth_stencil_attachment: None,
+            });
+
+            // draw text
+            pass.set_pipeline(&graphics.text_pipeline);
+            pass.set_vertex_buffer(0, v_text_buf.slice(..));
+            pass.set_index_buffer(i_text_buf.slice(..), wgpu::IndexFormat::Uint16);
+            pass.set_bind_group(0, &graphics.mat_buffer_bind_group, &[]);
+            pass.set_bind_group(1, &graphics.text_texture_bind_group, &[]);
+            pass.draw_indexed(0..indices_text.len() as _, 0, 0..1);
+
+            // draw triangle
+            pass.set_pipeline(&graphics.pipeline);
+            pass.set_vertex_buffer(0, v_tri_buf.slice(..));
+            pass.set_index_buffer(i_tri_buf.slice(..), wgpu::IndexFormat::Uint16);
+            pass.set_bind_group(0, &graphics.mat_buffer_bind_group, &[]);
+            pass.set_bind_group(1, &graphics.text_texture_bind_group, &[]);
+            pass.draw_indexed(0..indices_tri.len() as _, 0, 0..1);
+        }
+        graphics.queue.submit(std::iter::once(command_buf.finish()));
+
+        Ok(())
+    }
+}
+
 struct TetrisMain {
     /// Array containing all fixed cells
     field: Field,
@@ -176,22 +386,18 @@ struct TetrisMain {
 
 impl lib::game::GameState for TetrisMain {
     fn update(&mut self, window: &glfw::Window, dt: std::time::Duration) -> lib::game::StateChange {
-        fn is_pressed(input: KeyState, ticker: u64) -> bool {
-            match input {
-                KeyState::Pressed => true,
-                KeyState::Holding if ticker % 2 == 0 => true,
-                _ => false,
-            }
-        }
-
         self.accum += dt.as_secs_f32();
         
-        while self.accum > 0.05 {
+        while self.accum > FRAME_TIME {
             self.ticker += 1;
 
             let input = input(&window, self.last_input);
             self.last_input = input;
-            self.accum -= 0.05;
+            self.accum -= FRAME_TIME;
+
+            if was_pressed(input.escape, self.ticker) {
+                return lib::game::StateChange::Pop;
+            }
 
             if self.active_piece.is_none() {
                 self.active_piece = Some(self.next_pieces.remove(0));
@@ -204,7 +410,7 @@ impl lib::game::GameState for TetrisMain {
 
             // tick fall counter
             self.fall_counter -= 1;
-            let should_fall = self.fall_counter == 0 || is_pressed(input.down, self.ticker);
+            let should_fall = self.fall_counter == 0 || was_pressed(input.down, self.ticker);
 
             // tick down fall accelerator counter
             self.fall_accel_counter -= 1;
@@ -241,13 +447,13 @@ impl lib::game::GameState for TetrisMain {
             }
 
             // move brick left and right if requested
-            if is_pressed(input.right, self.ticker) {
+            if was_pressed(input.right, self.ticker) {
                 let mut test_piece = active_piece.to_owned();
                 test_piece.x += 1;
                 if piece_fits(&test_piece, &self.field) {
                     active_piece.x = test_piece.x;
                 }
-            } else if is_pressed(input.left, self.ticker) {
+            } else if was_pressed(input.left, self.ticker) {
                 let mut test_piece = active_piece.to_owned();
                 test_piece.x -= 1;
                 if piece_fits(&test_piece, &self.field) {
@@ -456,13 +662,13 @@ impl lib::game::GameState for TetrisMain {
         let mut vertices_text = Vec::new();
         let mut indices_text = Vec::new();
         
-        let (vt, it) = lib::graphics::text::render_text(&format!("Score: {:06}", self.score), 1.1, 0.9, 0.05, vertices_text.len());
+        let (vt, it) = lib::graphics::text::render_text(&format!("Score: {:06}", self.score), 1.1, 0.9, 0.05, vertices_text.len(), ACTIVE_COLOR);
         vertices_text.extend(vt);
         indices_text.extend(it);
 
         let level = 20 - self.fall_ticks + 1;
 
-        let (vt, it) = lib::graphics::text::render_text(&format!("Level: {:2}", level), 1.1, 0.95, 0.05, vertices_text.len());
+        let (vt, it) = lib::graphics::text::render_text(&format!("Level: {:2}", level), 1.1, 0.95, 0.05, vertices_text.len(), ACTIVE_COLOR);
         vertices_text.extend(vt);
         indices_text.extend(it);
 
@@ -631,11 +837,27 @@ impl Default for KeyState {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 struct PlayerInput {
+    up: KeyState,
     down: KeyState,
     left: KeyState,
     right: KeyState,
     rot_right: KeyState,
     rot_left: KeyState,
+    escape: KeyState
+}
+
+impl PlayerInput {
+    fn all_pressed() -> Self {
+        Self {
+            up: KeyState::Holding,
+            down: KeyState::Holding,
+            left: KeyState::Holding,
+            right: KeyState::Holding,
+            rot_right: KeyState::Holding,
+            rot_left: KeyState::Holding,
+            escape: KeyState::Holding,
+        }
+    }
 }
 
 fn input(window: &glfw::Window, last_input: PlayerInput) -> PlayerInput {
@@ -654,11 +876,13 @@ fn input(window: &glfw::Window, last_input: PlayerInput) -> PlayerInput {
     }
 
     PlayerInput {
+        up: map(window.get_key(Key::Up), last_input.up),
         down: map(window.get_key(Key::Down), last_input.down),
         left: map(window.get_key(Key::Left), last_input.left),
         right: map(window.get_key(Key::Right), last_input.right),
         rot_left: map(window.get_key(Key::X), last_input.rot_left),
         rot_right: map(window.get_key(Key::Z), last_input.rot_right),
+        escape: map(window.get_key(Key::Escape), last_input.escape),
     }
 }
 
@@ -673,7 +897,7 @@ fn main() {
     window.set_key_polling(true);
     window.set_size_polling(true);
 
-    let mut states: Vec<Box<dyn GameState>> = vec![Box::new(TetrisMain::default())];
+    let mut states: Vec<Box<dyn GameState>> = vec![Box::new(TetrisMenu::default())];
     let mut graphics = futures::executor::block_on(lib::graphics::GraphicsState::new(&window));
     let mut last_frame = std::time::Instant::now();
 
@@ -721,11 +945,10 @@ fn main() {
 
         // events
         glfw.poll_events();
+
+        #[allow(clippy::single_match)]
         for (_, event) in glfw::flush_messages(&events) {
             match event {
-                glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                    window.set_should_close(true)
-                }
                 glfw::WindowEvent::Size(width, height) => {
                     graphics.resize(width as u32, height as u32);
                 }
