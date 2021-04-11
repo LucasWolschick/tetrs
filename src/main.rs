@@ -175,9 +175,7 @@ struct TetrisMain {
 }
 
 impl lib::game::GameState for TetrisMain {
-    fn update(&mut self, window: &glfw::Window, dt: std::time::Duration) {
-        self.accum += dt.as_secs_f32();
-
+    fn update(&mut self, window: &glfw::Window, dt: std::time::Duration) -> lib::game::StateChange {
         fn is_pressed(input: KeyState, ticker: u64) -> bool {
             match input {
                 KeyState::Pressed => true,
@@ -185,11 +183,13 @@ impl lib::game::GameState for TetrisMain {
                 _ => false,
             }
         }
+
+        self.accum += dt.as_secs_f32();
         
         while self.accum > 0.05 {
             self.ticker += 1;
 
-            let input = input(&window, &self.last_input);
+            let input = input(&window, self.last_input);
             self.last_input = input;
             self.accum -= 0.05;
 
@@ -276,7 +276,7 @@ impl lib::game::GameState for TetrisMain {
                             // there's nothing here; continue
                             continue;
                         }
-                        if y as i32 >= FIELD_HEIGHT as i32 {
+                        if i32::from(y) >= FIELD_HEIGHT as i32 {
                             // we've already passed the whole board; stop
                             break;
                         }
@@ -326,9 +326,13 @@ impl lib::game::GameState for TetrisMain {
                 }
             }
         }
+
+        lib::game::StateChange::None
     }
 
     fn render(&self, graphics: &lib::graphics::GraphicsState) -> Result<(), wgpu::SwapChainError> {
+        const LINE_THICKNESS: f32 = 0.01;
+
         // render fixed field
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut indices: Vec<u16> = Vec::new();
@@ -342,14 +346,13 @@ impl lib::game::GameState for TetrisMain {
         // a single pass, which means that we need two different thickness values so the
         // lines maintain a uniform scale, with the Y thickness being half of the X thick-
         // ness. There's probably a more elegant solution out there but...
-        const THICKNESS: f32 = 0.01;
 
         let mut vec_pairs = Vec::with_capacity((((FIELD_HEIGHT-1) + (FIELD_WIDTH-1))*2) as usize);
         for y in 1..FIELD_HEIGHT {
             vec_pairs.push(cgmath::Vector2::<f32>::new(0.0, y as f32 / FIELD_HEIGHT as f32));
             vec_pairs.push(cgmath::Vector2::<f32>::new(1.0, y as f32 / FIELD_HEIGHT as f32));
         }
-        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(&vec_pairs, THICKNESS / 2.0, vertices.len());
+        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(&vec_pairs, LINE_THICKNESS / 2.0, vertices.len());
         vertices.extend(l_vtx);
         indices.extend(l_indx);
         vec_pairs.clear();
@@ -358,7 +361,7 @@ impl lib::game::GameState for TetrisMain {
             vec_pairs.push(cgmath::Vector2::<f32>::new(x as f32 / FIELD_WIDTH as f32, 0.0));
             vec_pairs.push(cgmath::Vector2::<f32>::new(x as f32 / FIELD_WIDTH as f32, 1.0));
         }
-        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(&vec_pairs, THICKNESS, vertices.len());
+        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(&vec_pairs, LINE_THICKNESS, vertices.len());
         vertices.extend(l_vtx);
         indices.extend(l_indx);
         
@@ -417,8 +420,8 @@ impl lib::game::GameState for TetrisMain {
                 for x in 0..4 {
                     if piece.filled_at(x, y) {
                         add_cell(
-                            (piece.x as i32 + x as i32) as u32,
-                            (piece.y as i32 + y as i32) as u32,
+                            (i32::from(piece.x) + x as i32) as u32,
+                            (i32::from(piece.y) + y as i32) as u32,
                             piece.color,
                         );
                     }
@@ -635,7 +638,7 @@ struct PlayerInput {
     rot_left: KeyState,
 }
 
-fn input(window: &glfw::Window, last_input: &PlayerInput) -> PlayerInput {
+fn input(window: &glfw::Window, last_input: PlayerInput) -> PlayerInput {
     fn map(a: Action, prev: KeyState) -> KeyState {
         let this = match a {
             Action::Press | Action::Repeat => KeyState::Pressed,
@@ -670,18 +673,20 @@ fn main() {
     window.set_key_polling(true);
     window.set_size_polling(true);
 
-    let state: &mut dyn GameState = &mut TetrisMain::default();
+    let mut states: Vec<Box<dyn GameState>> = vec![Box::new(TetrisMain::default())];
     let mut graphics = futures::executor::block_on(lib::graphics::GraphicsState::new(&window));
     let mut last_frame = std::time::Instant::now();
 
     while !window.should_close() {
+        let state = states.last_mut().unwrap();
+
         // timing
         let frame = std::time::Instant::now();
         let dt = frame - last_frame;
         last_frame = frame;
 
         // update
-        state.update(&window, dt);
+        let update_result = state.update(&window, dt);
 
         // render
         match state.render(&graphics) {
@@ -691,6 +696,28 @@ fn main() {
             }
             _ => (),
         };
+
+        match update_result {
+            lib::game::StateChange::None => {} // do nothing
+            lib::game::StateChange::Quit => {
+                // quit the game
+                window.set_should_close(true)
+            }
+            lib::game::StateChange::Push(state) => {
+                // push a new state
+                states.push(state);
+            }
+            lib::game::StateChange::Pop => {
+                // pop state and quit if there are no more states
+                if states.pop().is_none() {
+                    window.set_should_close(true);
+                }
+            }
+            lib::game::StateChange::Swap(state) => {
+                // replace the current state by another one
+                *states.last_mut().unwrap() = state;
+            }
+        }
 
         // events
         glfw.poll_events();
