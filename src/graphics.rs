@@ -227,6 +227,7 @@ impl GraphicsState {
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
+                clamp_depth: false,
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState {
@@ -275,6 +276,7 @@ impl GraphicsState {
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
+                clamp_depth: false,
             }
         });
 

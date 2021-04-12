@@ -81,7 +81,8 @@ fn load_shader(path: impl AsRef<std::path::Path>) -> Result<ShaderInfo> {
 
 fn main() -> Result<()> {
     let mut paths = [
-        glob::glob("./res/shaders/*")?
+        glob::glob("./res/shaders/*.vert")?,
+        glob::glob("./res/shaders/*.frag")?
     ];
 
     let shaders = paths.iter_mut().flatten().map(|path| load_shader(path?)).collect::<Vec<Result<_>>>().into_iter().collect::<Result<Vec<_>>>()?;
