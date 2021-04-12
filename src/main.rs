@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 
 use std::array;
 
-use wgpu_practice as lib;
+use tet_rs as lib;
 use lib::{game::GameState, graphics::Vertex};
 
 const FIELD_WIDTH: u32 = 10;

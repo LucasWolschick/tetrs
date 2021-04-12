@@ -76,8 +76,8 @@ impl GraphicsState {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
-        let vertex_module = shader::create_shader(&device, "res/shaders/shader.vert").unwrap();
-        let fragment_module = shader::create_shader(&device, "res/shaders/shader.frag").unwrap();
+        let vertex_module = shader::create_shader(&device, "res/shaders/shader.vert.spv").unwrap();
+        let fragment_module = shader::create_shader(&device, "res/shaders/shader.frag.spv").unwrap();
         
         let mat = cgmath::Matrix4::<f32>::identity();
         let raw: [[f32; 4]; 4] = mat.into();
@@ -244,7 +244,7 @@ impl GraphicsState {
                 }],
             }),
         });
-        let text_frag_module = shader::create_shader(&device, "res/shaders/texquad.frag").unwrap();
+        let text_frag_module = shader::create_shader(&device, "res/shaders/texquad.frag.spv").unwrap();
         let text_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             layout: Some(&pipeline_layout),
             label: Some("text_pipeline"),

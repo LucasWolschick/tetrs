@@ -1,8 +1,9 @@
 [package]
-name = "wgpu-practice"
+name = "tet_rs"
 version = "0.1.0"
 authors = ["Lucas W. <6264382+LucasWolschick@users.noreply.github.com>"]
 edition = "2018"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,9 +14,9 @@ bytemuck = { version = "1.5.1", features = [ "derive" ] } # safe slice casting
 cgmath = "0.18.0" # linear algebra maths
 rayon = "1.5.0" # parallel execution
 image = "0.23.14" # image manipulation
-tobj = "2.0.4" # .obj file loader
-anyhow = "1.0.40" # error handling
-wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" } # graphics API 
-shaderc = "0.7.2" # shader compilation
+wgpu = { git = "https://github.com/gfx-rs/wgpu-rs", head = "53600ecd834893ef3e90458c48b84f2582d6c343", rev = "53600ecd834893ef3e90458c48b84f2582d6c343" } # graphics API 
 rand = "0.8.3" # random number generation
-byteorder = "1.4.3" # reading from files
+
+[build-dependencies]
+glob = "0.3"
+shaderc = "0.7.2"
