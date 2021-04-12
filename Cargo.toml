@@ -18,3 +18,4 @@ anyhow = "1.0.40" # error handling
 wgpu = { git = "https://github.com/gfx-rs/wgpu-rs" } # graphics API 
 shaderc = "0.7.2" # shader compilation
 rand = "0.8.3" # random number generation
+byteorder = "1.4.3" # reading from files
