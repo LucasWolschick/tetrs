@@ -61,7 +61,7 @@ fn load_shader(path: impl AsRef<std::path::Path>) -> Result<ShaderInfo> {
         .ok_or(ShaderCompilationError::InvalidExtension)?
         .to_str()
         .ok_or(ShaderCompilationError::InvalidExtension)?;
-    
+
     let kind = match extension {
         "vert" => shaderc::ShaderKind::Vertex,
         "frag" => shaderc::ShaderKind::Fragment,
@@ -75,22 +75,32 @@ fn load_shader(path: impl AsRef<std::path::Path>) -> Result<ShaderInfo> {
         src,
         src_path: path.as_ref().to_path_buf(),
         spv_path,
-        kind
+        kind,
     })
 }
 
 fn main() -> Result<()> {
     let mut paths = [
         glob::glob("./res/shaders/*.vert")?,
-        glob::glob("./res/shaders/*.frag")?
+        glob::glob("./res/shaders/*.frag")?,
     ];
 
-    let shaders = paths.iter_mut().flatten().map(|path| load_shader(path?)).collect::<Vec<Result<_>>>().into_iter().collect::<Result<Vec<_>>>()?;
+    let shaders = paths
+        .iter_mut()
+        .flatten()
+        .map(|path| load_shader(path?))
+        .collect::<Vec<Result<_>>>()
+        .into_iter()
+        .collect::<Result<Vec<_>>>()?;
 
-    let mut compiler = shaderc::Compiler::new().ok_or(ShaderCompilationError::ShadercInitFailure)?;
+    let mut compiler =
+        shaderc::Compiler::new().ok_or(ShaderCompilationError::ShadercInitFailure)?;
 
     for shader in shaders {
-        println!("cargo:rerun-if-changed={}", shader.src_path.as_os_str().to_str().unwrap());
+        println!(
+            "cargo:rerun-if-changed={}",
+            shader.src_path.as_os_str().to_str().unwrap()
+        );
 
         let artifact = compiler.compile_into_spirv(
             &shader.src,

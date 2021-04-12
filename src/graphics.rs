@@ -2,9 +2,9 @@ use cgmath::prelude::*;
 use image::GenericImageView;
 use wgpu::util::DeviceExt;
 
-pub mod text;
-pub mod shader;
 pub mod lines;
+pub mod shader;
+pub mod text;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -77,8 +77,9 @@ impl GraphicsState {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let vertex_module = shader::create_shader(&device, "res/shaders/shader.vert.spv").unwrap();
-        let fragment_module = shader::create_shader(&device, "res/shaders/shader.frag.spv").unwrap();
-        
+        let fragment_module =
+            shader::create_shader(&device, "res/shaders/shader.frag.spv").unwrap();
+
         let mat = cgmath::Matrix4::<f32>::identity();
         let raw: [[f32; 4]; 4] = mat.into();
         let mat_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -86,10 +87,10 @@ impl GraphicsState {
             label: Some("mat_buffer"),
             usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM,
         });
-        let mat_buffer_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("mat_buffer_bind_group_layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
+        let mat_buffer_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("mat_buffer_bind_group_layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     count: None,
                     visibility: wgpu::ShaderStage::VERTEX,
@@ -97,17 +98,14 @@ impl GraphicsState {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
-                    }
-                }
-            ]
-        });
+                    },
+                }],
+            });
         let mat_buffer_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: mat_buffer.as_entire_binding(),
-                }
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: mat_buffer.as_entire_binding(),
+            }],
             label: Some("mat_buffer_bind_group"),
             layout: &mat_buffer_bind_group_layout,
         });
@@ -116,19 +114,23 @@ impl GraphicsState {
             let rgba = text_texture_img.to_rgba8();
             let size = text_texture_img.dimensions();
 
-            device.create_texture_with_data(&queue, &wgpu::TextureDescriptor {
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                label: Some("text_texture"),
-                mip_level_count: 1,
-                sample_count: 1,
-                size: wgpu::Extent3d {
-                    width: size.0,
-                    height: size.1,
-                    depth_or_array_layers: 1,
+            device.create_texture_with_data(
+                &queue,
+                &wgpu::TextureDescriptor {
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    label: Some("text_texture"),
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    size: wgpu::Extent3d {
+                        width: size.0,
+                        height: size.1,
+                        depth_or_array_layers: 1,
+                    },
+                    usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
                 },
-                usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
-            }, &rgba)
+                &rgba,
+            )
         };
         let text_texture_view = text_texture.create_view(&wgpu::TextureViewDescriptor::default());
         let text_texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -140,51 +142,50 @@ impl GraphicsState {
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
-        let text_texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    count: None,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float {
-                            filterable: true,
+        let text_texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        count: None,
+                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
                         },
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                    }
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    count: None,
-                    visibility: wgpu::ShaderStage::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler {
-                        comparison: false,
-                        filtering: true,
-                    }
-                }
-            ],
-            label: Some("text_texture_bind_group_layout")
-        });
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        count: None,
+                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler {
+                            comparison: false,
+                            filtering: true,
+                        },
+                    },
+                ],
+                label: Some("text_texture_bind_group_layout"),
+            });
         let text_texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("text_texture_bind_group"),
             layout: &text_texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&text_texture_view)
+                    resource: wgpu::BindingResource::TextureView(&text_texture_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&text_texture_sampler)
-                }
-            ]
+                    resource: wgpu::BindingResource::Sampler(&text_texture_sampler),
+                },
+            ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("pipeline_layout"),
             bind_group_layouts: &[
                 &mat_buffer_bind_group_layout,
-                &text_texture_bind_group_layout
+                &text_texture_bind_group_layout,
             ],
             push_constant_ranges: &[],
         });
@@ -245,14 +246,15 @@ impl GraphicsState {
                 }],
             }),
         });
-        let text_frag_module = shader::create_shader(&device, "res/shaders/texquad.frag.spv").unwrap();
+        let text_frag_module =
+            shader::create_shader(&device, "res/shaders/texquad.frag.spv").unwrap();
         let text_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             layout: Some(&pipeline_layout),
             label: Some("text_pipeline"),
             vertex: wgpu::VertexState {
                 buffers: &[vblayout],
                 entry_point: "main",
-                module: &vertex_module
+                module: &vertex_module,
             },
             fragment: Some(wgpu::FragmentState {
                 targets: &[wgpu::ColorTargetState {
@@ -267,7 +269,7 @@ impl GraphicsState {
             multisample: wgpu::MultisampleState {
                 alpha_to_coverage_enabled: false,
                 count: 1,
-                mask: !0
+                mask: !0,
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -277,7 +279,7 @@ impl GraphicsState {
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
                 clamp_depth: false,
-            }
+            },
         });
 
         Self {
@@ -290,7 +292,7 @@ impl GraphicsState {
             mat_buffer,
             mat_buffer_bind_group,
             text_pipeline,
-            text_texture_bind_group
+            text_texture_bind_group,
         }
     }
 

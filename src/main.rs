@@ -4,8 +4,8 @@ use wgpu::util::DeviceExt;
 
 use std::array;
 
-use tet_rs as lib;
 use lib::{game::GameState, graphics::Vertex};
+use tet_rs as lib;
 
 const FIELD_WIDTH: u32 = 10;
 const FIELD_HEIGHT: u32 = 20;
@@ -13,7 +13,7 @@ const FRAME_TIME: f32 = 0.05;
 const ACTIVE_COLOR: [f32; 3] = [1.0, 1.0, 1.0];
 const INACTIVE_COLOR: [f32; 3] = [0.5, 0.5, 0.5];
 
-#[rustfmt::ignore = "readability"]
+#[rustfmt::skip = "readability"]
 static PIECES: &[&str] = &[
     "....\
      .##.\
@@ -81,7 +81,15 @@ impl Color {
 }
 
 static PIECE_COLORS: &[Color] = {
-    &[Color::Red, Color::Orange, Color::Yellow, Color::Green, Color::Blue, Color::Purple, Color::White]
+    &[
+        Color::Red,
+        Color::Orange,
+        Color::Yellow,
+        Color::Green,
+        Color::Blue,
+        Color::Purple,
+        Color::White,
+    ]
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -221,62 +229,106 @@ impl GameState for TetrisMenu {
 
     fn render(&self, graphics: &lib::graphics::GraphicsState) -> Result<(), wgpu::SwapChainError> {
         // create uniforms
-        let dimensions = (graphics.sc_desc.width as f32, graphics.sc_desc.height as f32);
+        let dimensions = (
+            graphics.sc_desc.width as f32,
+            graphics.sc_desc.height as f32,
+        );
         let aspect_ratio = dimensions.0 / dimensions.1;
         let offset = aspect_ratio / 2.0 - 0.5;
-        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0) * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
+        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0)
+            * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
         let raw: [[f32; 4]; 4] = proj.into();
-        graphics.queue.write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
-        
+        graphics
+            .queue
+            .write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
+
         // render text
         let mut vertices_text = Vec::new();
         let mut indices_text = Vec::new();
 
-        let (vt, it) = lib::graphics::text::render_text("Tet.rs", 0.0, 0.2, 1.0/6.0, vertices_text.len(), ACTIVE_COLOR);
+        let (vt, it) = lib::graphics::text::render_text(
+            "Tet.rs",
+            0.0,
+            0.2,
+            1.0 / 6.0,
+            vertices_text.len(),
+            ACTIVE_COLOR,
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
-        let (vt, it) = lib::graphics::text::render_text("Play", 0.25, 0.5, 0.5/4.0, vertices_text.len(), if self.selection == 0 { ACTIVE_COLOR } else { INACTIVE_COLOR });
+        let (vt, it) = lib::graphics::text::render_text(
+            "Play",
+            0.25,
+            0.5,
+            0.5 / 4.0,
+            vertices_text.len(),
+            if self.selection == 0 {
+                ACTIVE_COLOR
+            } else {
+                INACTIVE_COLOR
+            },
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
-        let (vt, it) = lib::graphics::text::render_text("Scores", 0.25-0.5/4.0, 0.7, 0.5/4.0, vertices_text.len(), if self.selection == 1 { ACTIVE_COLOR } else { INACTIVE_COLOR });
+        let (vt, it) = lib::graphics::text::render_text(
+            "Scores",
+            0.25 - 0.5 / 4.0,
+            0.7,
+            0.5 / 4.0,
+            vertices_text.len(),
+            if self.selection == 1 {
+                ACTIVE_COLOR
+            } else {
+                INACTIVE_COLOR
+            },
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
-        let (vt, it) = lib::graphics::text::render_text("Quit", 0.25, 0.9, 0.5/4.0, vertices_text.len(), if self.selection == 2 { ACTIVE_COLOR } else { INACTIVE_COLOR });
+        let (vt, it) = lib::graphics::text::render_text(
+            "Quit",
+            0.25,
+            0.9,
+            0.5 / 4.0,
+            vertices_text.len(),
+            if self.selection == 2 {
+                ACTIVE_COLOR
+            } else {
+                INACTIVE_COLOR
+            },
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
         // render selection tick on highlighted thingie
         let (y_offset, x_offset) = match self.selection {
             0 => (0.5, 0.25),
-            1 => (0.7, 0.25 - 0.5/4.0),
+            1 => (0.7, 0.25 - 0.5 / 4.0),
             2 => (0.9, 0.25),
             _ => unreachable!(),
         };
-        let tri_width = 0.5/4.0/2.0;
+        let tri_width = 0.5 / 4.0 / 2.0;
         let x_offset = x_offset - tri_width * 1.5;
         let vertices_tri = vec![
             Vertex {
                 position: [x_offset, y_offset, 0.0],
                 color: [1.0, 1.0, 1.0],
-                tex_coords: [0.0, 0.0]
+                tex_coords: [0.0, 0.0],
             },
             Vertex {
-                position: [x_offset + tri_width, y_offset + tri_width/2.0, 0.0],
+                position: [x_offset + tri_width, y_offset + tri_width / 2.0, 0.0],
                 color: [1.0, 1.0, 1.0],
-                tex_coords: [0.0, 0.0]
+                tex_coords: [0.0, 0.0],
             },
             Vertex {
                 position: [x_offset, y_offset + tri_width, 0.0],
                 color: [1.0, 1.0, 1.0],
-                tex_coords: [0.0, 0.0]
-            }
+                tex_coords: [0.0, 0.0],
+            },
         ];
-        let indices_tri: Vec<u16> = vec![
-            0, 2, 1
-        ];
+        let indices_tri: Vec<u16> = vec![0, 2, 1];
 
         // create buffers
         let v_text_buf = graphics
@@ -307,13 +359,15 @@ impl GameState for TetrisMenu {
                 label: Some("i_text_buf"),
                 usage: wgpu::BufferUsage::INDEX,
             });
-        
 
         // render!
         let frame = graphics.swap_chain.get_current_frame()?.output;
-        let mut command_buf = graphics
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("command_buf") });
+        let mut command_buf =
+            graphics
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("command_buf"),
+                });
         {
             let mut pass = command_buf.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("pass"),
@@ -377,7 +431,7 @@ struct TetrisScores {
 }
 
 fn load_scores() -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
-    use std::{fs, io::Read, convert::TryInto};
+    use std::{convert::TryInto, fs, io::Read};
 
     let mut file = fs::File::open("tetrs_scores.bin")?;
     let mut contents = Vec::new();
@@ -385,7 +439,7 @@ fn load_scores() -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
     let mut reader = &*contents;
 
     let mut scores = Vec::new();
-    
+
     let mut bytes = 0;
 
     // read file header
@@ -394,7 +448,10 @@ fn load_scores() -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
     bytes += 8;
     let txt = &buffer[0..8];
     if txt != b"tet.rs 1" {
-        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid format")));
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "invalid format",
+        )));
     }
 
     // read the number of entries
@@ -422,7 +479,10 @@ fn load_scores() -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
 
     // have we read the whole file?
     if bytes != file_length {
-        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "extraneous data")));
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "extraneous data",
+        )));
     }
 
     sort_scores(&mut scores[..]);
@@ -435,8 +495,12 @@ fn save_scores(scores: &[(String, u64)]) -> Result<(), Box<dyn std::error::Error
     use std::fs;
     use std::io::{self, prelude::*};
 
-    let file = fs::OpenOptions::new().write(true).truncate(true).create(true).open("tetrs_scores.bin")?;
-    
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open("tetrs_scores.bin")?;
+
     let mut writer = io::BufWriter::new(file);
 
     // write header
@@ -455,7 +519,7 @@ fn save_scores(scores: &[(String, u64)]) -> Result<(), Box<dyn std::error::Error
         // write the score
         writer.write_all(&score.to_le_bytes())?;
     }
-    
+
     // save to file
     writer.flush()?;
 
@@ -464,7 +528,10 @@ fn save_scores(scores: &[(String, u64)]) -> Result<(), Box<dyn std::error::Error
 
 impl Default for TetrisScores {
     fn default() -> Self {
-        let scores = load_scores().unwrap_or_else(|e| {eprintln!("Error loading scores: {}", e); Vec::new()});
+        let scores = load_scores().unwrap_or_else(|e| {
+            eprintln!("Error loading scores: {}", e);
+            Vec::new()
+        });
 
         Self {
             scores,
@@ -489,13 +556,17 @@ impl GameState for TetrisScores {
             if let Some(score) = self.inputting_score {
                 // TODO: actually take in name inputs
                 let name = "PLR";
-                
+
                 // make sure our scores are sorted
                 sort_scores(&mut self.scores[..]);
 
                 // find the index our score would have and insert it
                 if score > 0 {
-                    let i = self.scores.iter().enumerate().find(|(_, (_, s))| *s < score);
+                    let i = self
+                        .scores
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (_, s))| *s < score);
                     if let Some((index, _)) = i {
                         // yuh
                         self.scores.insert(index, (name.to_string(), score));
@@ -509,7 +580,8 @@ impl GameState for TetrisScores {
                 sort_scores(&mut self.scores[..]);
 
                 // save the file
-                save_scores(&self.scores[..]).unwrap_or_else(|e| eprintln!("Couldn't save scores: {}", e));
+                save_scores(&self.scores[..])
+                    .unwrap_or_else(|e| eprintln!("Couldn't save scores: {}", e));
 
                 // we're done processing it
                 self.inputting_score = None;
@@ -525,18 +597,31 @@ impl GameState for TetrisScores {
 
     fn render(&self, graphics: &lib::graphics::GraphicsState) -> Result<(), wgpu::SwapChainError> {
         // create uniforms
-        let dimensions = (graphics.sc_desc.width as f32, graphics.sc_desc.height as f32);
+        let dimensions = (
+            graphics.sc_desc.width as f32,
+            graphics.sc_desc.height as f32,
+        );
         let aspect_ratio = dimensions.0 / dimensions.1;
         let offset = aspect_ratio / 2.0 - 0.5;
-        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0) * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
+        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0)
+            * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
         let raw: [[f32; 4]; 4] = proj.into();
-        graphics.queue.write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
-        
+        graphics
+            .queue
+            .write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
+
         // render text
         let mut vertices_text = Vec::new();
         let mut indices_text = Vec::new();
 
-        let (vt, it) = lib::graphics::text::render_text("Scores", 0.0, 0.2, 1.0/6.0, vertices_text.len(), ACTIVE_COLOR);
+        let (vt, it) = lib::graphics::text::render_text(
+            "Scores",
+            0.0,
+            0.2,
+            1.0 / 6.0,
+            vertices_text.len(),
+            ACTIVE_COLOR,
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
@@ -546,7 +631,14 @@ impl GameState for TetrisScores {
                 score_txt = score_txt.chars().take(7).chain("...".chars()).collect();
             }
             let txt = format!("{:.<10}{:.>10}", name, score_txt);
-            let (vt, it) = lib::graphics::text::render_text(&txt, -0.5, 0.2+1.0/6.0+0.055*i as f32, 0.1, vertices_text.len(), ACTIVE_COLOR);
+            let (vt, it) = lib::graphics::text::render_text(
+                &txt,
+                -0.5,
+                0.2 + 1.0 / 6.0 + 0.055 * i as f32,
+                0.1,
+                vertices_text.len(),
+                ACTIVE_COLOR,
+            );
             vertices_text.extend(vt);
             indices_text.extend(it);
         }
@@ -566,13 +658,15 @@ impl GameState for TetrisScores {
                 label: Some("i_text_buf"),
                 usage: wgpu::BufferUsage::INDEX,
             });
-        
 
         // render!
         let frame = graphics.swap_chain.get_current_frame()?.output;
-        let mut command_buf = graphics
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("command_buf") });
+        let mut command_buf =
+            graphics
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("command_buf"),
+                });
         {
             let mut pass = command_buf.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("pass"),
@@ -630,7 +724,7 @@ struct TetrisMain {
 
     /// Time accumulator
     accum: f32,
-    
+
     /// Whether we rotated last frame
     rotated: bool,
 
@@ -649,20 +743,18 @@ struct TetrisMain {
 
 struct BoardEffect {
     ty: BoardEffectType,
-    life: u64
+    life: u64,
 }
 
 enum BoardEffectType {
-    LinesCleared {
-        lines: Vec<i8>,
-    },
-    GameOver
+    LinesCleared { lines: Vec<i8> },
+    GameOver,
 }
 
 impl lib::game::GameState for TetrisMain {
     fn update(&mut self, window: &glfw::Window, dt: std::time::Duration) -> lib::game::StateChange {
         self.accum += dt.as_secs_f32();
-        
+
         while self.accum > FRAME_TIME {
             self.ticker += 1;
 
@@ -673,7 +765,7 @@ impl lib::game::GameState for TetrisMain {
             if was_pressed(input.escape, self.ticker) {
                 return lib::game::StateChange::Pop;
             }
-            
+
             if let Some(effect) = &mut self.effect {
                 // handle effect and return early
                 effect.life -= 1;
@@ -686,28 +778,34 @@ impl lib::game::GameState for TetrisMain {
                                     // n^3 loop :woozy_face:
                                     if y == 0 {
                                         // last line, just clear it
-                                        self.field[x as usize + y as usize * FIELD_WIDTH as usize] =
+                                        self.field
+                                            [x as usize + y as usize * FIELD_WIDTH as usize] =
                                             Cell::Empty;
                                     } else {
                                         // fill it with the contents of the line above
-                                        self.field[x as usize + y as usize * FIELD_WIDTH as usize] = self
+                                        self.field
+                                            [x as usize + y as usize * FIELD_WIDTH as usize] = self
                                             .field
                                             [x as usize + (y - 1) as usize * FIELD_WIDTH as usize];
                                     }
                                 }
                             }
                         }
-                    },
+                    }
                     BoardEffectType::GameOver if effect.life == 0 => {
                         // game over!
                         // TODO: configure scores to add score
                         let scores = TetrisScores {
-                            inputting_score: if self.score > 0 { Some(self.score) } else { None },
+                            inputting_score: if self.score > 0 {
+                                Some(self.score)
+                            } else {
+                                None
+                            },
                             ..Default::default()
                         };
                         return lib::game::StateChange::Swap(Box::new(scores));
-                    },
-                    _ => ()
+                    }
+                    _ => (),
                 }
                 if effect.life == 0 {
                     self.effect = None;
@@ -718,10 +816,9 @@ impl lib::game::GameState for TetrisMain {
             if self.active_piece.is_none() {
                 // check if we have enough space!
                 let test_piece = self.next_pieces.remove(0);
-                self
-                    .next_pieces
+                self.next_pieces
                     .push(Piece::new(rand::thread_rng().gen_range(0..PIECES.len())));
-                
+
                 if piece_fits(&test_piece, &self.field) {
                     // ok :D
                     self.active_piece = Some(test_piece);
@@ -729,7 +826,7 @@ impl lib::game::GameState for TetrisMain {
                     // failuree!!
                     self.effect = Some(BoardEffect {
                         ty: BoardEffectType::GameOver,
-                        life: ((1.0/FRAME_TIME) * 3.0).trunc() as u64
+                        life: ((1.0 / FRAME_TIME) * 3.0).trunc() as u64,
                     });
                     continue;
                 }
@@ -824,7 +921,7 @@ impl lib::game::GameState for TetrisMain {
                         // if we got here this is a golden line
                         deletable.push(y);
                     }
-                    
+
                     if !deletable.is_empty() {
                         // add score
                         self.score += match deletable.len() {
@@ -832,17 +929,17 @@ impl lib::game::GameState for TetrisMain {
                             2 => 3,
                             3 => 5,
                             4 => 8,
-                            _ => unreachable!()
+                            _ => unreachable!(),
                         } * 100;
 
                         // decrease speed
-                        self.fall_accel_counter = self.fall_accel_counter.saturating_sub(deletable.len() as u32);
+                        self.fall_accel_counter = self
+                            .fall_accel_counter
+                            .saturating_sub(deletable.len() as u32);
 
                         // set effect and defer line deletion to later
                         self.effect = Some(BoardEffect {
-                            ty: BoardEffectType::LinesCleared {
-                                lines: deletable
-                            },
+                            ty: BoardEffectType::LinesCleared { lines: deletable },
                             life: ((1.0 / FRAME_TIME) * 1.0).trunc() as u64,
                         });
                     }
@@ -873,24 +970,42 @@ impl lib::game::GameState for TetrisMain {
         // lines maintain a uniform scale, with the Y thickness being half of the X thick-
         // ness. There's probably a more elegant solution out there but...
 
-        let mut vec_pairs = Vec::with_capacity((((FIELD_HEIGHT-1) + (FIELD_WIDTH-1))*2) as usize);
+        let mut vec_pairs =
+            Vec::with_capacity((((FIELD_HEIGHT - 1) + (FIELD_WIDTH - 1)) * 2) as usize);
         for y in 1..FIELD_HEIGHT {
-            vec_pairs.push(cgmath::Vector2::<f32>::new(0.0, y as f32 / FIELD_HEIGHT as f32));
-            vec_pairs.push(cgmath::Vector2::<f32>::new(1.0, y as f32 / FIELD_HEIGHT as f32));
+            vec_pairs.push(cgmath::Vector2::<f32>::new(
+                0.0,
+                y as f32 / FIELD_HEIGHT as f32,
+            ));
+            vec_pairs.push(cgmath::Vector2::<f32>::new(
+                1.0,
+                y as f32 / FIELD_HEIGHT as f32,
+            ));
         }
-        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(&vec_pairs, LINE_THICKNESS / 2.0, vertices.len());
+        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(
+            &vec_pairs,
+            LINE_THICKNESS / 2.0,
+            vertices.len(),
+        );
         vertices.extend(l_vtx);
         indices.extend(l_indx);
         vec_pairs.clear();
 
         for x in 1..FIELD_WIDTH {
-            vec_pairs.push(cgmath::Vector2::<f32>::new(x as f32 / FIELD_WIDTH as f32, 0.0));
-            vec_pairs.push(cgmath::Vector2::<f32>::new(x as f32 / FIELD_WIDTH as f32, 1.0));
+            vec_pairs.push(cgmath::Vector2::<f32>::new(
+                x as f32 / FIELD_WIDTH as f32,
+                0.0,
+            ));
+            vec_pairs.push(cgmath::Vector2::<f32>::new(
+                x as f32 / FIELD_WIDTH as f32,
+                1.0,
+            ));
         }
-        let (l_vtx, l_indx) = lib::graphics::lines::render_lines_pairs(&vec_pairs, LINE_THICKNESS, vertices.len());
+        let (l_vtx, l_indx) =
+            lib::graphics::lines::render_lines_pairs(&vec_pairs, LINE_THICKNESS, vertices.len());
         vertices.extend(l_vtx);
         indices.extend(l_indx);
-        
+
         // render cells
         let mut add_cell = |x: u32, y: u32, col: Color| {
             let bx = x as f32 * inc_x;
@@ -932,7 +1047,11 @@ impl lib::game::GameState for TetrisMain {
             ]));
         };
 
-        let (spooky_lines, ticker) = if let Some(BoardEffect { ty: BoardEffectType::LinesCleared {ref lines}, life}) = &self.effect {
+        let (spooky_lines, ticker) = if let Some(BoardEffect {
+            ty: BoardEffectType::LinesCleared { ref lines },
+            life,
+        }) = &self.effect
+        {
             (&lines[..], *life)
         } else {
             (&[][..], 0)
@@ -941,7 +1060,10 @@ impl lib::game::GameState for TetrisMain {
         for y in 0..FIELD_HEIGHT {
             for x in 0..FIELD_WIDTH {
                 if let Cell::Full(col) = self.field[(x + y * FIELD_WIDTH) as usize] {
-                    if ticker % 10 < 5 || spooky_lines.is_empty() || !spooky_lines.contains(&(y as i8)) {
+                    if ticker % 10 < 5
+                        || spooky_lines.is_empty()
+                        || !spooky_lines.contains(&(y as i8))
+                    {
                         add_cell(x, y, col);
                     }
                 }
@@ -979,29 +1101,60 @@ impl lib::game::GameState for TetrisMain {
         }
 
         // create uniforms
-        let dimensions = (graphics.sc_desc.width as f32, graphics.sc_desc.height as f32);
+        let dimensions = (
+            graphics.sc_desc.width as f32,
+            graphics.sc_desc.height as f32,
+        );
         let aspect_ratio = dimensions.0 / dimensions.1;
         let offset = aspect_ratio / 2.0 - 0.5;
-        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0) * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
+        let proj = cgmath::Matrix4::from_nonuniform_scale(0.5, 1.0, 1.0)
+            * cgmath::ortho(-offset, 1.0 + offset, 1.0, 0.0, -1.0, 1.0);
         let raw: [[f32; 4]; 4] = proj.into();
-        graphics.queue.write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
+        graphics
+            .queue
+            .write_buffer(&graphics.mat_buffer, 0, bytemuck::cast_slice(&raw));
 
         // render text
         let mut vertices_text = Vec::new();
         let mut indices_text = Vec::new();
-        
-        let (vt, it) = lib::graphics::text::render_text(&format!("Score: {:06}", self.score), 1.1, 0.9, 0.05, vertices_text.len(), ACTIVE_COLOR);
+
+        let (vt, it) = lib::graphics::text::render_text(
+            &format!("Score: {:06}", self.score),
+            1.1,
+            0.9,
+            0.05,
+            vertices_text.len(),
+            ACTIVE_COLOR,
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
         let level = 20 - self.fall_ticks + 1;
 
-        let (vt, it) = lib::graphics::text::render_text(&format!("Level: {:2}", level), 1.1, 0.95, 0.05, vertices_text.len(), ACTIVE_COLOR);
+        let (vt, it) = lib::graphics::text::render_text(
+            &format!("Level: {:2}", level),
+            1.1,
+            0.95,
+            0.05,
+            vertices_text.len(),
+            ACTIVE_COLOR,
+        );
         vertices_text.extend(vt);
         indices_text.extend(it);
 
-        if let Some(BoardEffect { ty: BoardEffectType::GameOver, .. }) = &self.effect {
-            let (vt, it) = lib::graphics::text::render_text("GAME OVER!", 0.0, 0.1, 0.1, vertices_text.len(), ACTIVE_COLOR);
+        if let Some(BoardEffect {
+            ty: BoardEffectType::GameOver,
+            ..
+        }) = &self.effect
+        {
+            let (vt, it) = lib::graphics::text::render_text(
+                "GAME OVER!",
+                0.0,
+                0.1,
+                0.1,
+                vertices_text.len(),
+                ACTIVE_COLOR,
+            );
             vertices_text.extend(vt);
             indices_text.extend(it);
         }
@@ -1035,13 +1188,15 @@ impl lib::game::GameState for TetrisMain {
                 label: Some("i_text_buf"),
                 usage: wgpu::BufferUsage::INDEX,
             });
-        
 
         // render!
         let frame = graphics.swap_chain.get_current_frame()?.output;
-        let mut command_buf = graphics
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("command_buf") });
+        let mut command_buf =
+            graphics
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("command_buf"),
+                });
         {
             let mut pass = command_buf.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("pass"),
@@ -1132,7 +1287,7 @@ fn piece_fits(piece: &Piece, field: &Field) -> bool {
                     // out of bounds
                     return false;
                 }
-                
+
                 if field[offset as usize] != Cell::Empty {
                     // filled
                     return false;
@@ -1161,7 +1316,7 @@ fn add_piece(piece: &Piece, field: &mut Field) {
 enum KeyState {
     Pressed,
     Holding,
-    Released
+    Released,
 }
 
 impl Default for KeyState {
@@ -1178,7 +1333,7 @@ struct PlayerInput {
     right: KeyState,
     rot_right: KeyState,
     rot_left: KeyState,
-    escape: KeyState
+    escape: KeyState,
 }
 
 impl PlayerInput {
@@ -1203,7 +1358,9 @@ fn input(window: &glfw::Window, last_input: PlayerInput) -> PlayerInput {
         };
 
         match (this, prev) {
-            (KeyState::Pressed, KeyState::Pressed) | (KeyState::Pressed, KeyState::Holding) => KeyState::Holding,
+            (KeyState::Pressed, KeyState::Pressed) | (KeyState::Pressed, KeyState::Holding) => {
+                KeyState::Holding
+            }
             (KeyState::Pressed, KeyState::Released) => KeyState::Pressed,
             (KeyState::Released, _) => KeyState::Released,
             _ => unreachable!(),
