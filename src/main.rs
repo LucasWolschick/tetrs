@@ -445,7 +445,7 @@ fn save_scores(scores: &[(String, u64)]) -> Result<(), Box<dyn std::error::Error
     let n_entries = usize::min(scores.len(), 10) as u8;
     writer.write_all(&n_entries.to_le_bytes())?;
     // write entries
-    for (name, score) in scores.iter().take(10) {
+    for (name, score) in scores.iter().rev().take(10) {
         // write the length of the name
         let name_len = usize::min(name.len(), u8::MAX as usize) as u8;
         writer.write_all(&name_len.to_le_bytes())?;
@@ -506,6 +506,7 @@ impl GameState for TetrisScores {
                         self.scores.push((name.to_string(), score));
                     }
                 }
+                sort_scores(&mut self.scores[..]);
 
                 // save the file
                 save_scores(&self.scores[..]).unwrap_or_else(|e| eprintln!("Couldn't save scores: {}", e));
@@ -741,7 +742,6 @@ impl lib::game::GameState for TetrisMain {
             let should_fall = self.fall_counter == 0 || was_pressed(input.down, self.ticker);
 
             // tick down fall accelerator counter
-            self.fall_accel_counter -= 1;
             if self.fall_accel_counter == 0 {
                 self.fall_ticks = u32::max(self.fall_ticks - 1, 1);
                 self.fall_accel_counter = self.fall_accel_ticks;
@@ -835,12 +835,15 @@ impl lib::game::GameState for TetrisMain {
                             _ => unreachable!()
                         } * 100;
 
+                        // decrease speed
+                        self.fall_accel_counter = self.fall_accel_counter.saturating_sub(deletable.len() as u32);
+
                         // set effect and defer line deletion to later
                         self.effect = Some(BoardEffect {
                             ty: BoardEffectType::LinesCleared {
                                 lines: deletable
                             },
-                            life: ((1.0 / FRAME_TIME) * 2.0).trunc() as u64,
+                            life: ((1.0 / FRAME_TIME) * 1.0).trunc() as u64,
                         });
                     }
 
@@ -1085,7 +1088,7 @@ impl Default for TetrisMain {
             field: [Cell::Empty; (FIELD_WIDTH * FIELD_HEIGHT) as usize],
             active_piece: None,
             fall_ticks: 20,
-            fall_accel_ticks: 600,
+            fall_accel_ticks: 10,
             accum: 0.0,
             rotated: false,
             last_input: PlayerInput::default(),
