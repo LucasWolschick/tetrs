@@ -12,7 +12,7 @@ A falling blocks game made in Rust with [wgpu](https://www.github.com/gfx-rs/wgp
 
 Download the repository and run ```cargo build --release```. The output executable will be in `target/release/`. The game expects to find a `res` folder containing textures and shaders in its working directory.
 
-Building requires shaderc to be available and properly configured in your system; check [shaderc-rs's repository](https://github.com/google/shaderc-rs) for more details.
+Building requires shaderc to be available and properly configured in your system; check [shaderc-rs's repository](https://github.com/google/shaderc-rs) for more details. Building this also requires GLFW 3 to be installed in your machine; check [glfw-rs's repository](https://github.com/PistonDevelopers/glfw-rs) for more details.
 
 ## Note on code quality
 
